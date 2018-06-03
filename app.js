@@ -40,7 +40,7 @@ app.post("/doLogin",(req,res)=>{
         let cursor = usersDb.find({"username":req.body.username,"password":req.body.password});
         cursor.toArray((err,data)=>{
             if(data.length>0){
-                console.log("登录成功");
+                console.log("登录成功"); //
                 res.redirect("/productList");
             }else{
                 console.log("登录失败");
