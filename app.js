@@ -1,6 +1,7 @@
 const express = require("express")
 const ejs = require("ejs");
 const bodyPreser = require("body-parser");
+const md5 = require("md5");
 
 
 const app = express();
@@ -38,13 +39,15 @@ app.use((req,res,next)=>{
     if(_url_=="/" || _url_=="/login" || _url_=="/doLogin"){
         next();
     }else{
-        if(session.userInfo && session.userInfo.username!=""){
+        if(req.session.userInfo && req.session.userInfo.username!=""){
+            app.locals["userInfo"] = req.session.userInfo;
             next();
         }else{
             res.redirect("/login");
         }
     }
 })
+
 
 //首页
 app.get("/",(req,res)=>{
@@ -59,17 +62,23 @@ app.get("/login",(req,res)=>{
 //登陆操作
 app.post("/doLogin",(req,res)=>{
 
+    var username = req.body.username;
+    var password = md5(req.body.password);
+
     MongoClient.connect(mongoUrl, (err, client)=>{
         if(err){
             console.log("数据库链接失败");
             return false;
         }
         let usersDb = client.db("dxh").collection("users");
-        let cursor = usersDb.find({"username":req.body.username,"password":req.body.password});
+        let cursor = usersDb.find({
+            "username":username
+            ,"password":password
+        });
         cursor.toArray((err,data)=>{
             if(data.length>0){
                 console.log("登录成功"); //
-                session.userInfo = data[0];
+                req.session.userInfo = data[0];
                 res.redirect("/productList");
             }else{
                 console.log("登录失败");
@@ -82,6 +91,15 @@ app.post("/doLogin",(req,res)=>{
 
 //商品列表
 app.get("/productList",(req,res)=>{
+
+    MongoClient.connect(mongoUrl,(err,client)=>{
+        if(err){
+            console.log(err);
+            return false;
+        }
+        let cursor = client.collection("product").find({});
+    });
+
     res.render("main/productList")
 });
 
@@ -99,6 +117,17 @@ app.get("/productEdit",(req,res)=>{
 app.get("/productDel",(req,res)=>{
     res.send("列表页面")
 });
+
+//注销session
+app.get("/logout",(req,res)=>{
+    req.session.destroy((err)=>{
+        if(err){
+            console.log(err);
+        }else{
+            res.redirect("/login");
+        }
+    });
+})
 
 
 app.listen("8080");
