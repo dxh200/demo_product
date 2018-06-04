@@ -2,6 +2,10 @@ const express = require("express")
 const ejs = require("ejs");
 const bodyPreser = require("body-parser");
 const md5 = require("md5");
+const multiparty = require("multiparty");
+
+const mongoDb = require("./modules/mongoDB");
+
 
 
 const app = express();
@@ -12,13 +16,15 @@ app.set("view engine","ejs");
 app.set("views",__dirname+"/content");
 //设置静态资源
 app.use(express.static("resources"));
+
+//图片上传目录
+app.use("/upload",express.static("upload"));
+
 //bodyPerser设置
 app.use(bodyPreser.urlencoded({extended:false}));
 app.use(bodyPreser.json());
 
-//mongodb链接数据库
-var MongoClient = require('mongodb').MongoClient;
-var mongoUrl = "mongodb://127.0.0.1:27017/dxh";
+
 
 //保存session
 const session = require("express-session");
@@ -65,48 +71,67 @@ app.post("/doLogin",(req,res)=>{
     var username = req.body.username;
     var password = md5(req.body.password);
 
-    MongoClient.connect(mongoUrl, (err, client)=>{
+    mongoDb.find("users",{
+        username:username,
+        password:password
+    },function(err,data){
         if(err){
-            console.log("数据库链接失败");
-            return false;
+            console.log(err)
+            return;
         }
-        let usersDb = client.db("dxh").collection("users");
-        let cursor = usersDb.find({
-            "username":username
-            ,"password":password
-        });
-        cursor.toArray((err,data)=>{
-            if(data.length>0){
-                console.log("登录成功"); //
-                req.session.userInfo = data[0];
-                res.redirect("/productList");
-            }else{
-                console.log("登录失败");
-                res.send("<script>alert('用户名或密码错误');location.href='/login';</script>")
-            }
-            client.close();
-        });
+        if(data.length>0){
+            console.log("登录成功"); //
+            req.session.userInfo = data[0];
+            res.redirect("/productList");
+        }else{
+            console.log("登录失败");
+            res.send("<script>alert('用户名或密码错误');location.href='/login';</script>")
+        }
     });
 });
 
 //商品列表
 app.get("/productList",(req,res)=>{
 
-    MongoClient.connect(mongoUrl,(err,client)=>{
+    mongoDb.find("product",{},(err,data)=>{
         if(err){
             console.log(err);
-            return false;
+        }else{
+            res.render("main/productList",{
+                list:data
+            });
         }
-        let cursor = client.collection("product").find({});
-    });
-
-    res.render("main/productList")
+    })
 });
 
 //商品添加
 app.get("/productAdd",(req,res)=>{
     res.render("main/productAdd")
 });
+app.post("/doProductAdd",(req,res)=>{
+    var form = new multiparty.Form();
+    form.uploadDir = "upload";   /*前提目录必须存在*/
+    form.parse(req, function(err, fields, files) {
+        console.log(fields);
+        var title = fields.title[0];
+        var jg = fields.jg[0];
+        var yf = fields.yf[0];
+        console.log(files);
+        var pic = files.pic[0].path;
+
+
+        mongoDb.save("product",{
+            title,jg,yf,pic
+        },function(err,data){
+            if(err){
+                console.log(err);
+                return ;
+            }else{
+                res.redirect("/productList")
+            }
+        })
+    });
+})
 
 //商品编辑
 app.get("/productEdit",(req,res)=>{
