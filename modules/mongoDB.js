@@ -1,4 +1,5 @@
 var MongoClient = require('mongodb').MongoClient;
+var ObjectID = require("mongodb").ObjectID;
 //var mongoUrl = "mongodb://127.0.0.1:27017/dxh";
 var options = {
     db_user: "",
@@ -21,6 +22,8 @@ function __connectDB__(callback){
         console.log("关闭数据库链接")
     })
 }
+
+exports.ObjectID = ObjectID;
 //find
 exports.find = (tableName,option,callback)=>{
     __connectDB__((db)=>{

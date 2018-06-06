@@ -3,6 +3,7 @@ const ejs = require("ejs");
 const bodyPreser = require("body-parser");
 const md5 = require("md5");
 const multiparty = require("multiparty");
+const fs = require("fs");
 
 const mongoDb = require("./modules/mongoDB");
 
@@ -67,7 +68,6 @@ app.get("/login",(req,res)=>{
 });
 //登陆操作
 app.post("/doLogin",(req,res)=>{
-
     var username = req.body.username;
     var password = md5(req.body.password);
 
@@ -103,6 +103,53 @@ app.get("/productList",(req,res)=>{
         }
     })
 });
+
+app.get("/productEdit",(req,res)=>{
+    let id = req.query.id;
+    mongoDb.find("product",{"_id":new mongoDb.ObjectID(id)},(err,data)=>{
+        //console.log(data);
+        res.render("main/productEdit",{data:data[0]});
+    })
+})
+app.post("/doProductEdit",(req,res)=>{
+    var form = new multiparty.Form();
+    form.uploadDir = "upload";   /*前提目录必须存在*/
+    form.parse(req, function(err, fields, files) {
+        var id = fields._id[0];
+        var title = fields.title[0];
+        var jg = fields.jg[0];
+        var yf = fields.yf[0];
+        var pic = files.pic[0].path;
+
+        var originalFilename = files.pic[0].originalFilename;
+        console.log(originalFilename)
+        if(originalFilename){
+            var set_data = {
+                title,jg,yf,pic
+            }
+        }else{
+            var set_data = {
+                title,jg,yf
+            }
+           console.log(__dirname+"\\"+pic);
+            fs.unlink(__dirname+"\\"+pic,function(err){
+
+                if(err){
+                    console.log(err);
+                    return false;
+                }
+                console.log('删除文件成功');
+            })
+        }
+
+        //
+        mongoDb.update("product",{"_id":new mongoDb.ObjectID(id)},set_data,(err,data)=>{
+
+            res.redirect("/productList");
+        })
+
+    })
+})
 
 //商品添加
 app.get("/productAdd",(req,res)=>{
@@ -140,7 +187,10 @@ app.get("/productEdit",(req,res)=>{
 
 //商品删除
 app.get("/productDel",(req,res)=>{
-    res.send("列表页面")
+    let id = req.query.id;
+    mongoDb.delete("product",{"_id":new mongoDb.ObjectID(id)},(err)=>{
+        res.redirect("/productList");
+    })
 });
 
 //注销session
